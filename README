@@ -1,3 +1,6 @@
+docker pull hieuchinguyen/flask-security-app:v2
+docker run --env-file .env -p 8989:8989 hieuchinguyen/flask-security-app:v2
+
 docker pull hieuchinguyen/flask-security-app:latest
 docker run --env-file .env -p 8989:8989 hieuchinguyen/flask-security-app:latest
 
