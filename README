@@ -1,0 +1,11 @@
+docker pull hieuchinguyen/flask-security-app:latest
+docker run --env-file .env -p 8989:8989 hieuchinguyen/flask-security-app:latest
+
+# Test api Postman
+"""
+curl --location 'http://localhost:8989/analysis_agent' \
+--header 'Content-Type: application/json' \
+--data '{
+    "query": "Kiểm tra URL https://viettelstore.vn/"
+}'
+"""
