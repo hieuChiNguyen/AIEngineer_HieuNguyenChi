@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import re
+import urllib.parse
 
 import openai
 import requests
@@ -84,17 +85,14 @@ def check_virustotal(item_type, value):
     elif item_type == "ip":
         url = f"https://www.virustotal.com/api/v3/ip_addresses/{value}"
         response = requests.get(url, headers=headers)
-        # print(f"VirusTotal response for IP: {response.status_code}, {response.text}")
     elif item_type == "hash":
         url = f"https://www.virustotal.com/api/v3/files/{value}"
         response = requests.get(url, headers=headers)
-        # print(f"VirusTotal response for hash: {response.status_code}, {response.text}")
     elif item_type == "process":
         hash_value = calculate_file_hash(value)
         if hash_value:
             url = f"https://www.virustotal.com/api/v3/files/{hash_value}"
             response = requests.get(url, headers=headers)
-            # print(f"VirusTotal response for process hash: {response.status_code}, {response.text}")
         else:
             return "unknown"
     else:
@@ -109,22 +107,51 @@ def check_virustotal(item_type, value):
     return "unknown"
 
 # AlienVault OTX
+# def check_alienvault(item_type, value):
+#     if item_type not in ["url", "ip", "hash"]:
+#         return "unknown"
+#     if item_type == "url":
+#         value = re.sub(r"^https?://", "", value).rstrip("/")
+#     url = f"https://otx.alienvault.com/api/v1/indicators/{'domain' if item_type == 'url' else item_type}/{value}"
+#     headers = {"X-OTX-API-KEY": ALIENVAULT_API_KEY}
+#     response = requests.get(url, headers=headers)
+#     # print(f"AlienVault response: {response.status_code}, {response.text}")
+#     if response.status_code == 200:
+#         result = response.json()
+#         # print(f"AlienVault result: {result}")
+#         if result.get("pulse_info", {}).get("count", 0) > 0:
+#             return "malicious"
+#         return "clean"
+#     return "unknown"
+
+# AlienVault OTX
 def check_alienvault(item_type, value):
     if item_type not in ["url", "ip", "hash"]:
         return "unknown"
+
     if item_type == "url":
-        value = re.sub(r"^https?://", "", value).rstrip("/")
-    url = f"https://otx.alienvault.com/api/v1/indicators/{'domain' if item_type == 'url' else item_type}/{value}"
+        value = urllib.parse.quote(value, safe='')
+        indicator_type = "URL"  # Use AlienVault's URL endpoint
+    else:
+        indicator_type = "file" if item_type == "hash" else item_type
+
+    url = f"https://otx.alienvault.com/api/v1/indicators/{indicator_type}/{value}"
     headers = {"X-OTX-API-KEY": ALIENVAULT_API_KEY}
-    response = requests.get(url, headers=headers)
-    # print(f"AlienVault response: {response.status_code}, {response.text}")
-    if response.status_code == 200:
-        result = response.json()
-        # print(f"AlienVault result: {result}")
-        if result.get("pulse_info", {}).get("count", 0) > 0:
-            return "malicious"
-        return "clean"
-    return "unknown"
+
+    try:
+        response = requests.get(url, headers=headers)
+        # print(f"AlienVault response: {response.status_code}, {response.text}")
+
+        if response.status_code == 200:
+            result = response.json()
+            # print(f"AlienVault result: {result}")
+            if result.get("pulse_info", {}).get("count", 0) > 0:
+                return "malicious"
+            return "clean"
+        return "unknown"
+    except requests.RequestException as e:
+        # print(f"AlienVault API error: {str(e)}")
+        return "unknown"
 
 
 # Route for the root path
@@ -143,7 +170,7 @@ def analysis_agent():
     try:
         data = request.json
         query = data.get('query')
-        query = query.replace('\\', '\\\\')
+        # query = query.replace('\\', '\\\\')
         query = re.sub(r'\s+', ' ', query.strip())
 
         # Analyze query to determine type and value
@@ -174,7 +201,6 @@ def analysis_agent():
     except Exception as e:
         print(f"error: {str(e)}")
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == '__main__':
     app.run(host='localhost', port=8989)
